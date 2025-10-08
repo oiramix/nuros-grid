@@ -1,0 +1,20 @@
+name = "nuros-grid-api"
+main = "dist/index.js"
+compatibility_date = "2024-10-01"
+
+
+# Bindings
+[[r2_buckets]]
+binding = "R2" # R2 bucket binding
+bucket_name = "nuros-grid"
+
+
+[vars]
+# Public-ish constants
+QUEUE_NAME = "jobs:sdxl_turbo"
+
+
+# Secrets to set via `wrangler secret put`
+# UPSTASH_REDIS_REST_URL
+# UPSTASH_REDIS_REST_TOKEN
+# AGENT_ADMIN_KEY (for registration)
