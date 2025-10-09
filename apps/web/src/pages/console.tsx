@@ -1,101 +1,84 @@
 import { useEffect, useRef, useState } from "react";
 
-const API = process.env.https://nuros-grid-api.oiramix3.workers.dev; // e.g. https://nuros-grid-api.<your>.workers.dev
+// Cloudflare Pages will inject NEXT_PUBLIC_API_URL at build-time.
+// Fallback to your Worker URL for local/dev.
+const API =
+  process.env.NEXT_PUBLIC_API_URL ??
+  "https://nuros-grid-api.oiramix3.workers.dev";
+
+// Small hook to run an interval that survives re-renders
+function useInterval(cb: () => void, delay: number | null) {
+  const saved = useRef(cb);
+  useEffect(() => {
+    saved.current = cb;
+  }, [cb]);
+  useEffect(() => {
+    if (delay === null) return;
+    const id = setInterval(() => saved.current(), delay);
+    return () => clearInterval(id);
+  }, [delay]);
+}
 
 export default function ConsolePage() {
-  const [url, setUrl] = useState(
-    "https://www.aspca.org/sites/default/files/cat-care_meowing-and-yowling_main-image.jpg"
-  );
+  const [url, setUrl] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>("");
-  const [resultUrl, setResultUrl] = useState<string>("");
-  const timerRef = useRef<any>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+  const [status, setStatus] = useState("");
+  const [resultUrl, setResultUrl] = useState("");
 
   async function createJob() {
-    setJobId(null);
-    setStatus("");
-    setResultUrl("");
-
     const res = await fetch(`${API}/v1/jobs/create`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        kind: "upscale_x4",
-        inUrls: [url],
-        args: {},
-      }),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "upscale_x4", inUrls: [url] }),
     });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      setStatus(`Create failed: ${res.status} ${txt}`);
-      return;
-    }
-
-    const { id } = await res.json();
-    setJobId(id);
+    const data = await res.json();
+    setJobId(data.id);
     setStatus("queued");
-
-    // Poll status every 1.5s
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(async () => {
-      try {
-        const sRes = await fetch(`${API}/v1/jobs/${id}/status`);
-        const data = await sRes.json();
-        const st = data?.status ?? "unknown";
-        setStatus(st);
-
-        // If API saved a result link, show it
-        if (st === "done" && data?.result) {
-          setResultUrl(data.result);
-          clearInterval(timerRef.current);
-        }
-      } catch (e: any) {
-        // ignore one-off errors in polling
-      }
-    }, 1500);
+    setResultUrl("");
   }
 
-  return (
-    <div style={{ maxWidth: 900, padding: 24, fontFamily: "system-ui, Arial" }}>
-      <h1>Buyer Console</h1>
+  // Poll job status once we have an id
+  useInterval(async () => {
+    if (!jobId) return;
+    try {
+      const r = await fetch(`${API}/v1/jobs/${jobId}/status`);
+      const d = await r.json();
+      if (d?.status) setStatus(d.status);
+      if (d?.status === "done" && d?.url) setResultUrl(d.url);
+    } catch {
+      /* ignore transient errors */
+    }
+  }, jobId ? 1500 : null);
 
+  return (
+    <main style={{ maxWidth: 860, margin: "40px auto", fontFamily: "system-ui" }}>
+      <h2>Buyer Console</h2>
       <p>Test job: Upscale x4 an image URL.</p>
 
       <input
-        style={{ width: "100%", padding: 8 }}
+        placeholder="Image URL"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
-        placeholder="https://example.com/image.jpg"
+        style={{ width: "100%", padding: 8 }}
       />
-      <div style={{ height: 12 }} />
-
-      <button onClick={createJob} style={{ padding: "6px 12px" }}>
+      <button onClick={createJob} style={{ marginTop: 12 }}>
         Create Job
       </button>
 
-      <div style={{ height: 16 }} />
       {jobId && (
-        <div>
-          <div>Job created: <code>{jobId}</code></div>
-          <div>Status: <strong>{status || "…"}</strong></div>
-
-          {status === "done" && resultUrl && (
-            <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 12 }}>
+          <div>Job: {jobId}</div>
+          <div>Status: {status || "…"}</div>
+          {resultUrl && (
+            <div>
               Result:{" "}
               <a href={resultUrl} target="_blank" rel="noreferrer">
-                Download / View
+                {resultUrl}
               </a>
             </div>
           )}
         </div>
       )}
-    </div>
+    </main>
   );
 }
