@@ -31,6 +31,7 @@ jobs.post('/create', async (c) => {
 
   const redis = new Redis(c.env.UPSTASH_REDIS_REST_URL, c.env.UPSTASH_REDIS_REST_TOKEN);
   await redis.lpush(c.env.QUEUE_NAME, job);
+  await redis.call("HSET", [`job:${id}`, "status", "queued", "outKey", key]);
   return c.json({ id });
 });
 
