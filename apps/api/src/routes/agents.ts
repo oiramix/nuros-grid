@@ -10,7 +10,7 @@ type Env = {
 UPSTASH_REDIS_REST_URL: string;
 UPSTASH_REDIS_REST_TOKEN: string;
 R2: R2Bucket;
-AGENT_ADMIN_KEY: string;
+QUEUE_NAME: string;
 };
 
 
