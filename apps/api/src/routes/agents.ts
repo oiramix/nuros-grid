@@ -24,7 +24,7 @@ agents.post('/register', async (c) => {
   return c.json({ agentKey: key, minVersion: '0.1.0' });
 });
 
-// Agent heartbeat (we can ignore details for MVP)
+// Agent heartbeat (MVP: accept and ack)
 agents.post('/heartbeat', async (c) => {
   const key = c.req.header('x-api-key');
   if (!key) return c.text('missing key', 401);
@@ -32,18 +32,18 @@ agents.post('/heartbeat', async (c) => {
   return c.json({ ok: true });
 });
 
-// Agent claims next job
+// Agent claims the next job
 agents.post('/claim', async (c) => {
   const key = c.req.header('x-api-key');
   if (!key) return c.text('missing key', 401);
 
   const redis = new Redis(c.env.UPSTASH_REDIS_REST_URL, c.env.UPSTASH_REDIS_REST_TOKEN);
 
-  // Pop from the queue (RPOP = FIFO with LPUSH)
+  // Pop from the queue (RPOP pairs with LPUSH for FIFO)
   const job = await redis.rpop<JobSpec>(c.env.QUEUE_NAME);
   if (!job) return c.body(null, 204);
 
-  // Mark status -> processing
+  // Mark job as processing so the UI can show progress
   await redis.call('HSET', [`job:${job.id}`, 'status', 'processing']);
 
   return c.json(job);
