@@ -1,50 +1,52 @@
 // apps/api/src/redis.ts
+type UpstashResponse<T> = { result: T };
+
+function esc(x: string | number | boolean) {
+  return encodeURIComponent(String(x));
+}
 
 export class Redis {
-  constructor(private url: string, private token: string) {}
+  constructor(
+    private url: string,
+    private token: string
+  ) {}
 
-  // ⬅️ make this PUBLIC
-  async call(cmd: string, args: (string | number | object)[]) {
-    const res = await fetch(this.url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        // Upstash REST expects: { "command": ["HSET","key","field","value", ...] }
-        // but they also accept ["cmd", ...] directly under "command"
-        command: [cmd, ...args],
-      }),
+  // Core call that *returns the unwrapped result* (not the whole JSON).
+  public async call<T>(
+    cmd: string,
+    args: Array<string | number | boolean> = []
+  ): Promise<T> {
+    const endpoint = `${this.url}/${cmd}/${args.map(esc).join('/')}`;
+    const res = await fetch(endpoint, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${this.token}` },
     });
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`Upstash error (${res.status}): ${text}`);
+      const text = await res.text();
+      throw new Error(`Upstash ${cmd} failed: ${res.status} ${text}`);
     }
-    return res.json(); // { result: ... }
+    const json = (await res.json()) as UpstashResponse<T>;
+    return json.result;
   }
 
-  async lpush(key: string, value: unknown) {
-    return this.call('LPUSH', [key, JSON.stringify(value)]);
+  // Convenience helpers we use in routes:
+
+  public async lpush(key: string, value: unknown): Promise<number> {
+    return this.call<number>('LPUSH', [key, JSON.stringify(value)]);
   }
 
-  async rpop<T>(key: string): Promise<T | null> {
-    const r = await this.call('RPOP', [key]);
-    if (!r?.result) return null;
-    try {
-      return JSON.parse(r.result) as T;
-    } catch {
-      return null;
-    }
+  public async rpop<T = unknown>(key: string): Promise<T | null> {
+    const raw = await this.call<string | null>('RPOP', [key]);
+    return raw ? (JSON.parse(raw) as T) : null;
   }
 
-  async hset(key: string, fields: Record<string, string>) {
-    const flat: (string | number)[] = [];
-    for (const [k, v] of Object.entries(fields)) flat.push(k, v);
-    return this.call('HSET', [key, ...flat]);
+  public async hgetall(key: string): Promise<string[]> {
+    // Returns flat array: ["field","value","field2","value2",...]
+    return this.call<string[]>('HGETALL', [key]);
   }
 
-  async hgetall(key: string) {
-    return this.call('HGETALL', [key]);
+  public async hset(key: string, fields: Record<string, string>): Promise<number> {
+    const flat = Object.entries(fields).flat();
+    return this.call<number>('HSET', [key, ...flat]);
   }
 }
