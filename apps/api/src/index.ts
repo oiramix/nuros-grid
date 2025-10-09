@@ -2,7 +2,9 @@ import { Hono } from 'hono';
 import agents from './routes/agents';
 import { jobs } from './routes/jobs';
 
+const app = new Hono();
 
+// CORS middleware
 app.use('*', async (c, next) => {
   const origin = c.req.header('origin') || '*';
   c.header('Access-Control-Allow-Origin', origin);
@@ -13,11 +15,8 @@ app.use('*', async (c, next) => {
   return next();
 });
 
-
-const app = new Hono();
 app.route('/v1/agent', agents);
 app.route('/v1/jobs', jobs);
 app.get('/', (c) => c.text('Nuros Grid API v0.1.0'));
-
 
 export default app;
