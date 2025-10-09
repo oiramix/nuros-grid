@@ -11,6 +11,7 @@ UPSTASH_REDIS_REST_URL: string;
 UPSTASH_REDIS_REST_TOKEN: string;
 R2: R2Bucket;
 QUEUE_NAME: string;
+AGENT_ADMIN_KEY: string;
 };
 
 
