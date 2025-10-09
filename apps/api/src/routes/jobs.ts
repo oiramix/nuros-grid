@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { JobSpec } from '@nuros/shared/src/types';
+import type { JobSpec } from '../types';
 import { Redis } from '../redis';
 
 
