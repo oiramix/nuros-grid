@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { AgentRegister, AgentHeartbeat, JobSpec } from '@nuros/shared/src/types';
+import type { AgentRegister, AgentHeartbeat, JobSpec } from '../types';
 import { Redis } from '../redis';
 
 
