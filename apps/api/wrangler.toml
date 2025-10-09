@@ -3,6 +3,10 @@ main = "dist/index.js"
 compatibility_date = "2024-10-01"
 
 
+[observability.logs]
+enabled = true
+
+
 # Bindings
 [[r2_buckets]]
 binding = "R2" # R2 bucket binding
