@@ -1,30 +1,101 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
+const API = process.env.https://nuros-grid-api.oiramix3.workers.dev; // e.g. https://nuros-grid-api.<your>.workers.dev
 
-export default function Console() {
-const [url, setUrl] = useState('');
-const [jobId, setJobId] = useState<string | null>(null);
+export default function ConsolePage() {
+  const [url, setUrl] = useState(
+    "https://www.aspca.org/sites/default/files/cat-care_meowing-and-yowling_main-image.jpg"
+  );
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>("");
+  const [resultUrl, setResultUrl] = useState<string>("");
+  const timerRef = useRef<any>(null);
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
-async function submitJob() {
-const api = process.env.NEXT_PUBLIC_API_URL ?? 'https://YOUR-WORKER.SUBDOMAIN.workers.dev';
-const res = await fetch(api + '/v1/jobs/create', {
-method: 'POST',
-headers: { 'content-type': 'application/json' },
-body: JSON.stringify({ kind: 'upscale_x4', inUrls: [url] })
-});
-const data = await res.json();
-setJobId(data.id);
-}
+  async function createJob() {
+    setJobId(null);
+    setStatus("");
+    setResultUrl("");
 
+    const res = await fetch(`${API}/v1/jobs/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "upscale_x4",
+        inUrls: [url],
+        args: {},
+      }),
+    });
 
-return (
-<main style={{ maxWidth: 860, margin: '40px auto', fontFamily: 'system-ui' }}>
-<h2>Buyer Console</h2>
-<p>Test job: Upscale x4 an image URL.</p>
-<input placeholder="Image URL" value={url} onChange={(e)=>setUrl(e.target.value)} style={{ width: '100%', padding: 8 }}/>
-<button onClick={submitJob} style={{ marginTop: 12 }}>Create Job</button>
-{jobId && <p>Job created: {jobId}</p>}
-</main>
-);
+    if (!res.ok) {
+      const txt = await res.text();
+      setStatus(`Create failed: ${res.status} ${txt}`);
+      return;
+    }
+
+    const { id } = await res.json();
+    setJobId(id);
+    setStatus("queued");
+
+    // Poll status every 1.5s
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(async () => {
+      try {
+        const sRes = await fetch(`${API}/v1/jobs/${id}/status`);
+        const data = await sRes.json();
+        const st = data?.status ?? "unknown";
+        setStatus(st);
+
+        // If API saved a result link, show it
+        if (st === "done" && data?.result) {
+          setResultUrl(data.result);
+          clearInterval(timerRef.current);
+        }
+      } catch (e: any) {
+        // ignore one-off errors in polling
+      }
+    }, 1500);
+  }
+
+  return (
+    <div style={{ maxWidth: 900, padding: 24, fontFamily: "system-ui, Arial" }}>
+      <h1>Buyer Console</h1>
+
+      <p>Test job: Upscale x4 an image URL.</p>
+
+      <input
+        style={{ width: "100%", padding: 8 }}
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        placeholder="https://example.com/image.jpg"
+      />
+      <div style={{ height: 12 }} />
+
+      <button onClick={createJob} style={{ padding: "6px 12px" }}>
+        Create Job
+      </button>
+
+      <div style={{ height: 16 }} />
+      {jobId && (
+        <div>
+          <div>Job created: <code>{jobId}</code></div>
+          <div>Status: <strong>{status || "…"}</strong></div>
+
+          {status === "done" && resultUrl && (
+            <div style={{ marginTop: 8 }}>
+              Result:{" "}
+              <a href={resultUrl} target="_blank" rel="noreferrer">
+                Download / View
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
