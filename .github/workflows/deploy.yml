@@ -25,11 +25,11 @@ jobs:
 
       - name: Put Worker secrets
         run: |
-          wrangler secret put UPSTASH_REDIS_REST_URL --value "${{ secrets.UPSTASH_REDIS_REST_URL }}"
-          wrangler secret put UPSTASH_REDIS_REST_TOKEN --value "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}"
-          wrangler secret put AGENT_ADMIN_KEY --value "${{ secrets.AGENT_ADMIN_KEY }}"
+          echo "${{ secrets.UPSTASH_REDIS_REST_URL }}" | wrangler secret put UPSTASH_REDIS_REST_URL
+          echo "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" | wrangler secret put UPSTASH_REDIS_REST_TOKEN
+          echo "${{ secrets.AGENT_ADMIN_KEY }}" | wrangler secret put AGENT_ADMIN_KEY
         env:
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
 
       - name: Publish Worker
